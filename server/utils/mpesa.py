@@ -15,13 +15,13 @@ load_dotenv()
 
 class Mpesa:
     def __init__(self):
-        self.consumer_key = os.getenv('MPESA_CONSUMER_KEY', 'your_consumer_key')
-        self.consumer_secret = os.getenv('MPESA_CONSUMER_SECRET', 'your_consumer_secret')
-        self.shortcode = os.getenv('MPESA_SHORTCODE', 'your_shortcode')
-        self.passkey = os.getenv('MPESA_PASSKEY', 'your_passkey')
+        self.consumer_key = os.getenv('MPESA_CONSUMER_KEY')
+        self.consumer_secret = os.getenv('MPESA_CONSUMER_SECRET')
+        self.shortcode = os.getenv('MPESA_SHORTCODE')
+        self.passkey = os.getenv('MPESA_PASSKEY')
         self.base_url = 'https://sandbox.safaricom.co.ke'
         self.access_token = self._get_access_token()
-        logger.debug(f"Initialized Mpesa with token: {self.access_token[:10]}...")  # Log first 10 chars of token
+        logger.debug(f"Initialized Mpesa with token: {self.access_token[:10]}...")
 
     def _get_access_token(self):
         url = f"{self.base_url}/oauth/v1/generate?grant_type=client_credentials"
@@ -29,9 +29,8 @@ class Mpesa:
         headers = {'Authorization': f'Basic {auth}'}
         try:
             response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()  # Raise an exception for bad status codes
+            response.raise_for_status()
             token_data = response.json()
-            logger.debug(f"Token response: {token_data}")
             return token_data['access_token']
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get access token: {e}")
@@ -44,16 +43,17 @@ class Mpesa:
     def initiate_payment(self, payment_id, phone_number, amount, job_id, creator_id):
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
         password = base64.b64encode(f"{self.shortcode}{self.passkey}{timestamp}".encode()).decode()
+        callback_url = os.getenv('MPESA_CALLBACK_URL', 'http://localhost:5000/api/v1/payment/callback')
         payload = {
             "BusinessShortCode": self.shortcode,
             "Password": password,
             "Timestamp": timestamp,
             "TransactionType": "CustomerPayBillOnline",
-            "Amount": amount,
+            "Amount": str(amount),
             "PartyA": phone_number,
             "PartyB": self.shortcode,
             "PhoneNumber": phone_number,
-            "CallBackURL": f"http://127.0.0.1:5000/api/v1/payment/callback",  # Update with ngrok URL later
+            "CallBackURL": callback_url,
             "AccountReference": f"PAYMENT_{payment_id}",
             "TransactionDesc": f"Payment for Job {job_id}"
         }
