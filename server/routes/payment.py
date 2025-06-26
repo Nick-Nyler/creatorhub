@@ -16,3 +16,19 @@ def create_payment():
     db.session.commit()
     initiate_payment(payment.id, data['phone_number'], data['amount'], data['job_id'], data['creator_id'])
     return jsonify({'id': payment.id, 'message': 'Payment initiated'}), 201
+
+@payment_bp.route('/callback', methods=['POST'])
+def payment_callback():
+    data = request.get_json()
+    logger.debug(f"Callback data: {data}")
+    result_code = data.get('Body', {}).get('stkCallback', {}).get('ResultCode')
+    checkout_request_id = data.get('Body', {}).get('stkCallback', {}).get('CheckoutRequestID')
+    if checkout_request_id:
+        payment = Payment.query.filter_by(id=checkout_request_id).first()
+        if payment:
+            if result_code == 0:
+                payment.status = 'completed'
+            else:
+                payment.status = 'failed'
+            db.session.commit()
+    return jsonify({'Result': {'ResultType': 0, 'ResultCode': 0, 'ResultDesc': 'Accepted'}}), 200
